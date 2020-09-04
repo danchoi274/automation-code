@@ -643,3 +643,92 @@ WBHog.SaveAs Filename:="J:\Accounts Receivables\Hogarth\Hog Cover Invoice.xlsx"
 Application.DisplayAlerts = True
 
 End Sub
+
+Sub Deposit_schedule_start()
+
+Application.OnTime Now + TimeValue("00:00:01"), "New_Daily_Check_Deposit"
+
+End Sub
+
+Sub Deposit_schedule_end()
+
+Application.OnTime Now + TimeValue("00:00:01"), "Email_Daily_Check_Deposit"
+
+End Sub
+
+Private Sub New_Daily_Check_Deposit()
+
+Sheets.Add(After:=ActiveSheet).Name = Format(Date, "MM-DD-YY")
+ActiveSheet.Previous.Select
+Range("B1:B2").HorizontalAlignment = xlCenter
+Range("A1:C22").Select
+Selection.Copy
+ActiveSheet.Next.Select
+ActiveSheet.Paste
+Cells(2, 2).Value = Format(Date, "MM/DD/YY")
+Columns("A:A").ColumnWidth = 20
+Columns("B:B").ColumnWidth = 25
+Columns("C:C").ColumnWidth = 20
+Range("C5:C7").ClearContents
+Range("C9:C11").ClearContents
+Range("C16:C20").ClearContents
+ActiveWorkbook.Save
+    
+End Sub
+
+Private Sub Email_Daily_Check_Deposit()
+    Workbooks("DEPOSIT REPORT 2020").Activate
+    Dim objSelection As Excel.Range
+    Dim objTempWorkbook As Excel.Workbook
+    Dim objTempWorksheet As Excel.Worksheet
+    Dim strTempHTMLFile As String
+    Dim objTempHTMLFile As Object
+    Dim objFileSystem As Object
+    Dim objTextStream As Object
+    Dim objOutlookApp As Outlook.Application
+    Dim objNewEmail As Outlook.MailItem
+ 
+    'Copy the selection
+    Set objSelection = Range("A1:C21")
+    objSelection.Copy
+ 
+    'Paste the copied selected ranges into a temp worksheet
+    Set objTempWorkbook = Excel.Application.Workbooks.Add(1)
+    Set objTempWorksheet = objTempWorkbook.Sheets(1)
+ 
+    'Keep the values, column widths and formats in pasting
+    With objTempWorksheet.Cells(1)
+         .PasteSpecial xlPasteValues
+         .PasteSpecial xlPasteColumnWidths
+         .PasteSpecial xlPasteFormats
+    End With
+ 
+    'Save the temp worksheet as a HTML file
+    Set objFileSystem = CreateObject("Scripting.FileSystemObject")
+    strTempHTMLFile = objFileSystem.GetSpecialFolder(2).Path & "\Temp for Excel" & Format(Now, "YYYY-MM-DD hh-mm-ss") & ".htm"
+    Set objTempHTMLFile = objTempWorkbook.PublishObjects.Add(xlSourceRange, strTempHTMLFile, objTempWorksheet.Name, objTempWorksheet.UsedRange.Address)
+    objTempHTMLFile.Publish (True)
+ 
+    'Create a new email
+    Set objOutlookApp = CreateObject("Outlook.Application")
+    Set objNewEmail = objOutlookApp.CreateItem(olMailItem)
+ 
+    'Read the HTML file data and insert into the email body
+    Set objTextStream = objFileSystem.OpenTextFile(strTempHTMLFile)
+    objNewEmail.HTMLBody = objTextStream.ReadAll
+    objNewEmail.Display
+    
+    'You can specify the new email recipients, subjects here using the following lines:
+    objNewEmail.To = "An Nguyen <ANguyen@theteamcompanies.com>; Diane Clarino <DClarino@theteamcompanies.com>; Guillermo Gomez <ggomez@theteamcompanies.com>; Heidi Leasiolagi <hleasiolagi@theteamcompanies.com>; Angela Easter <AEaster@theteamcompanies.com>; Darlene F. Paez <dpaez@theteamcompanies.com>; Dan Choi <dchoi@theteamcompanies.com>"
+    objNewEmail.Subject = "DAILY CHECK TOTAL FOR " & Format(Date, "MM/DD/YY") & " - 4:30 PM"
+    objNewEmail.Send
+ 
+    objTextStream.Close
+    objTempWorkbook.Close (False)
+    objFileSystem.DeleteFile (strTempHTMLFile)
+    
+    Workbooks("DEPOSIT REPORT 2020").Close SaveChanges:=True
+End Sub
+
+
+
